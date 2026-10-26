@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>BRICKMOJI</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1033; touch-action: none; }
+      #stage {
+        position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: #1a1033;
+      }
+      #game-canvas {
+        width: 100%; height: 100%; max-width: 100vh; /* portrait-locked by JS, this is just a sane default */
+        image-rendering: optimizeSpeed;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="game-canvas"></canvas>
+    </div>
+    <script src="main.js"></script>
+  </body>
+</html>
