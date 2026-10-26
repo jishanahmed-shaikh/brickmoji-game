@@ -19,8 +19,19 @@ export const BASE_SPEED = 460;
 export const SPEED_PER_LEVEL = 26;
 export const MAX_SPEED = 760;
 export const LIVES_START = 3;
+export const MAX_BALLS = 7;
+
+export const POWERUP_R = 20;
+export const POWERUP_FALL_SPEED = 230;
+export const POWERUP_DROP_CHANCE = 0.16;
+export const WIDE_MUL = 1.6;
+export const WIDE_DURATION_S = 9;
+export const SLOW_MUL = 0.55;
+export const SLOW_DURATION_S = 7;
 
 export type Phase = 'TITLE' | 'SERVE' | 'PLAYING' | 'LEVEL_CLEAR' | 'GAME_OVER';
+export type PowerupType = 'MULTI' | 'WIDE' | 'SLOW';
+export const POWERUP_TYPES: PowerupType[] = ['MULTI', 'WIDE', 'SLOW'];
 
 export interface Ball {
   x: number;
@@ -29,13 +40,24 @@ export interface Ball {
   vy: number;
 }
 
+export interface Powerup {
+  x: number;
+  y: number;
+  type: PowerupType;
+}
+
 export interface GameState {
   phase: Phase;
   score: number;
   level: number;
   lives: number;
   paddleX: number;
-  ball: Ball;
+  balls: Ball[];
+  powerups: Powerup[];
+  paddleWidthMul: number;
+  paddleWidthTimer: number;
+  speedMul: number;
+  speedTimer: number;
   layout: BrickLayout;
   banner: string;
   bannerTimer: number;
@@ -55,6 +77,10 @@ export function brickRect(col: number, row: number): { x: number; y: number; w: 
   };
 }
 
+export function paddleWidth(state: GameState): number {
+  return PADDLE_W * state.paddleWidthMul;
+}
+
 function serveBall(): Ball {
   return { x: BOARD_W / 2, y: PADDLE_Y - BALL_R - 2, vx: 0, vy: 0 };
 }
@@ -66,15 +92,26 @@ export function createGame(): GameState {
     level: 1,
     lives: LIVES_START,
     paddleX: BOARD_W / 2 - PADDLE_W / 2,
-    ball: serveBall(),
+    balls: [serveBall()],
+    powerups: [],
+    paddleWidthMul: 1,
+    paddleWidthTimer: 0,
+    speedMul: 1,
+    speedTimer: 0,
     layout: buildLevel(1, BRICK_COLS),
     banner: '',
     bannerTimer: 0,
   };
 }
 
+/** A fresh serve: one ball, no pickups in flight, every timed effect cleared. */
 export function resetBall(state: GameState): void {
-  state.ball = serveBall();
+  state.balls = [serveBall()];
+  state.powerups = [];
+  state.paddleWidthMul = 1;
+  state.paddleWidthTimer = 0;
+  state.speedMul = 1;
+  state.speedTimer = 0;
 }
 
 export function startLevel(state: GameState, level: number): void {

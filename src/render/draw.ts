@@ -1,5 +1,5 @@
 import type { Brick, Expression } from '../game/bricks';
-import { BOARD_W, BOARD_H, PADDLE_W, PADDLE_Y, BALL_R, LIVES_START, brickRect, type GameState } from '../game/state';
+import { BOARD_W, BOARD_H, PADDLE_Y, BALL_R, LIVES_START, POWERUP_R, brickRect, type GameState, type Powerup, type PowerupType } from '../game/state';
 import type { Profile } from '../platform/profile';
 
 const INK = '#1a1033';
@@ -100,13 +100,38 @@ export function drawBricks(ctx: CanvasRenderingContext2D, bricks: readonly Brick
   }
 }
 
-export function drawPaddle(ctx: CanvasRenderingContext2D, x: number): void {
+export function drawPaddle(ctx: CanvasRenderingContext2D, x: number, w: number, boosted: boolean): void {
   const g = ctx.createLinearGradient(x, PADDLE_Y, x, PADDLE_Y + 26);
-  g.addColorStop(0, '#ffd36b');
-  g.addColorStop(1, '#ff9f4a');
+  g.addColorStop(0, boosted ? '#8fe3a0' : '#ffd36b');
+  g.addColorStop(1, boosted ? '#5fd1a6' : '#ff9f4a');
   ctx.fillStyle = g;
-  roundRect(ctx, x, PADDLE_Y, PADDLE_W, 26, 13);
+  roundRect(ctx, x, PADDLE_Y, w, 26, 13);
   ctx.fill();
+}
+
+const POWERUP_STYLE: Record<PowerupType, { color: string; glyph: string }> = {
+  MULTI: { color: '#ff8fb3', glyph: '●●●' },
+  WIDE: { color: '#8fe3a0', glyph: '↔' },
+  SLOW: { color: '#6bc9ff', glyph: '❄' },
+};
+
+export function drawPowerups(ctx: CanvasRenderingContext2D, powerups: readonly Powerup[]): void {
+  for (const p of powerups) {
+    const style = POWERUP_STYLE[p.type];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, POWERUP_R, 0, Math.PI * 2);
+    ctx.fillStyle = style.color;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.stroke();
+    ctx.fillStyle = '#1a1033';
+    ctx.font = '700 16px system-ui, -apple-system, Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(style.glyph, p.x, p.y + 1);
+    ctx.textBaseline = 'alphabetic';
+  }
 }
 
 export function drawBall(ctx: CanvasRenderingContext2D, x: number, y: number): void {
@@ -146,26 +171,41 @@ function centerText(ctx: CanvasRenderingContext2D, text: string, y: number, size
   ctx.fillText(text, BOARD_W / 2, y);
 }
 
-function drawAvatarOrFace(ctx: CanvasRenderingContext2D, profile: Profile, cy: number): void {
+function drawAvatar(ctx: CanvasRenderingContext2D, avatar: HTMLImageElement, cy: number): void {
   const r = 70;
   ctx.save();
   ctx.beginPath();
   ctx.arc(BOARD_W / 2, cy, r, 0, Math.PI * 2);
   ctx.closePath();
-  if (profile.avatar) {
-    ctx.clip();
-    ctx.drawImage(profile.avatar, BOARD_W / 2 - r, cy - r, r * 2, r * 2);
-  } else {
-    ctx.fillStyle = '#ffd36b';
-    ctx.fill();
-    ctx.clip();
-    face(ctx, BOARD_W / 2, cy, r * 1.5, 'happy');
-  }
+  ctx.clip();
+  ctx.drawImage(avatar, BOARD_W / 2 - r, cy - r, r * 2, r * 2);
   ctx.restore();
 }
 
+// The game's actual mark — same artwork as assets/icon.png — drawn in code so
+// the title screen never depends on loading an external image file.
+function drawLogoMark(ctx: CanvasRenderingContext2D, cy: number): void {
+  const w = 170;
+  const cx = BOARD_W / 2;
+  ctx.fillStyle = '#ffd36b';
+  roundRect(ctx, cx - w / 2, cy - (w * 0.82) / 2, w, w * 0.82, 26);
+  ctx.fill();
+  face(ctx, cx, cy, w, 'happy');
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(cx, cy + w * 0.62, 11, 0, Math.PI * 2);
+  ctx.fill();
+  const pg = ctx.createLinearGradient(0, cy + 0.76 * w, 0, cy + 0.9 * w);
+  pg.addColorStop(0, '#8fe3a0');
+  pg.addColorStop(1, '#6bc9ff');
+  ctx.fillStyle = pg;
+  roundRect(ctx, cx - w * 0.3, cy + 0.76 * w, w * 0.6, 13, 6.5);
+  ctx.fill();
+}
+
 export function drawTitle(ctx: CanvasRenderingContext2D, profile: Profile): void {
-  drawAvatarOrFace(ctx, profile, 380);
+  if (profile.avatar) drawAvatar(ctx, profile.avatar, 380);
+  else drawLogoMark(ctx, 370);
   centerText(ctx, 'BRICKMOJI', 540, 84);
   centerText(ctx, 'smash the smiley bricks', 590, 30, 'rgba(255,255,255,0.8)', 500);
   centerText(ctx, '▶ TAP TO START', 760, 40, '#8fe3a0');

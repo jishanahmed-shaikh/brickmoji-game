@@ -1,15 +1,18 @@
-import { BOARD_W, BOARD_H, createGame } from './game/state';
+import { BOARD_W, BOARD_H, createGame, paddleWidth } from './game/state';
 import { Input } from './game/input';
-import { step } from './game/loop';
-import { drawBackground, drawBall, drawBricks, drawGameOver, drawHud, drawLevelClear, drawPaddle, drawServeHint, drawTitle } from './render/draw';
+import { step, type LoopHooks } from './game/loop';
+import { drawBackground, drawBall, drawBricks, drawGameOver, drawHud, drawLevelClear, drawPaddle, drawPowerups, drawServeHint, drawTitle } from './render/draw';
 import { Profile } from './platform/profile';
+import { Sound } from './audio/sound';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const state = createGame();
 const input = new Input();
 const profile = new Profile();
+const sound = new Sound();
 let newBest = false;
+let audioStarted = false;
 
 function fitCanvas(): void {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -30,6 +33,11 @@ function toBoard(clientX: number, clientY: number): { x: number; y: number } {
 }
 
 canvas.addEventListener('pointerdown', (e) => {
+  if (!audioStarted) {
+    audioStarted = true;
+    sound.unlock();
+    sound.startPad();
+  }
   const { x, y } = toBoard(e.clientX, e.clientY);
   if (state.phase === 'GAME_OVER' && y > 505 && y < 575) {
     profile.showLeaderboard();
@@ -42,10 +50,17 @@ window.addEventListener('pointermove', (e) => {
 });
 window.addEventListener('pointerup', () => input.up());
 
-const hooks = {
-  onGameOver(score: number): void {
+const hooks: LoopHooks = {
+  onGameOver(score): void {
     newBest = profile.reportScore(score);
+    sound.gameOver();
   },
+  onPaddleHit: () => sound.paddleHit(),
+  onWallHit: () => sound.wallHit(),
+  onBrickHit: (stillAlive) => sound.brickHit(stillAlive),
+  onLifeLost: () => sound.lifeLost(),
+  onLevelClear: () => sound.levelClear(),
+  onPowerup: () => sound.levelClear(),
 };
 
 function render(): void {
@@ -55,8 +70,9 @@ function render(): void {
     return;
   }
   drawBricks(ctx, state.layout.bricks);
-  drawPaddle(ctx, state.paddleX);
-  drawBall(ctx, state.ball.x, state.ball.y);
+  drawPowerups(ctx, state.powerups);
+  drawPaddle(ctx, state.paddleX, paddleWidth(state), state.paddleWidthMul > 1);
+  for (const ball of state.balls) drawBall(ctx, ball.x, ball.y);
   drawHud(ctx, state);
   if (state.phase === 'SERVE') drawServeHint(ctx);
   if (state.phase === 'LEVEL_CLEAR') drawLevelClear(ctx, state.banner);
