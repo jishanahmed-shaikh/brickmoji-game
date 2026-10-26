@@ -51,6 +51,23 @@ function face(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, 
     ctx.arc(cx - eyeDX, eyeY, eyeR * 1.2, 0, Math.PI * 2);
     ctx.arc(cx + eyeDX, eyeY, eyeR * 1.2, 0, Math.PI * 2);
     ctx.fill();
+  } else if (expr === 'angry') {
+    ctx.lineWidth = w * 0.05;
+    ctx.beginPath();
+    ctx.moveTo(cx - eyeDX - eyeR, eyeY - eyeR * 0.6);
+    ctx.lineTo(cx - eyeDX + eyeR, eyeY + eyeR * 0.3);
+    ctx.moveTo(cx + eyeDX + eyeR, eyeY - eyeR * 0.6);
+    ctx.lineTo(cx + eyeDX - eyeR, eyeY + eyeR * 0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx - eyeDX, eyeY + eyeR * 0.4, eyeR * 0.7, 0, Math.PI * 2);
+    ctx.arc(cx + eyeDX, eyeY + eyeR * 0.4, eyeR * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (expr === 'sad') {
+    ctx.beginPath();
+    ctx.arc(cx - eyeDX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.arc(cx + eyeDX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fill();
   } else {
     ctx.beginPath();
     ctx.arc(cx - eyeDX, eyeY, eyeR, 0, Math.PI * 2);
@@ -66,6 +83,12 @@ function face(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, 
   } else if (expr === 'cool') {
     ctx.moveTo(cx - w * 0.14, mouthY);
     ctx.lineTo(cx + w * 0.14, mouthY);
+    ctx.stroke();
+  } else if (expr === 'angry') {
+    ctx.arc(cx, mouthY + w * 0.1, w * 0.14, 1.15 * Math.PI, 1.85 * Math.PI);
+    ctx.stroke();
+  } else if (expr === 'sad') {
+    ctx.arc(cx, mouthY + w * 0.14, w * 0.16, 1.2 * Math.PI, 1.8 * Math.PI);
     ctx.stroke();
   } else {
     ctx.arc(cx, mouthY - w * 0.06, w * 0.18, 0.15 * Math.PI, 0.85 * Math.PI);
@@ -87,6 +110,16 @@ export function drawBricks(ctx: CanvasRenderingContext2D, bricks: readonly Brick
     const r = brickRect(b.col, b.row);
     const cx = r.x + r.w / 2;
     const cy = r.y + r.h / 2;
+
+    // Reacting to a hit: a quick squash and an angry/sad flash, settling back
+    // over ~0.2s — the faces the user asked to feel "lively", not static.
+    const reacting = b.hitTimer / 0.22;
+    const squash = 1 - reacting * 0.12;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1 / squash, squash);
+    ctx.translate(-cx, -cy);
     ctx.fillStyle = b.color;
     roundRect(ctx, r.x, r.y, r.w, r.h, 14);
     ctx.fill();
@@ -96,7 +129,13 @@ export function drawBricks(ctx: CanvasRenderingContext2D, bricks: readonly Brick
       roundRect(ctx, r.x + 3, r.y + 3, r.w - 6, r.h - 6, 11);
       ctx.stroke();
     }
-    face(ctx, cx, cy, Math.min(r.w, r.h), b.face);
+    if (reacting > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${reacting * 0.5})`;
+      roundRect(ctx, r.x, r.y, r.w, r.h, 14);
+      ctx.fill();
+    }
+    face(ctx, cx, cy, Math.min(r.w, r.h), reacting > 0.35 ? (b.hp > 1 ? 'angry' : 'sad') : b.face);
+    ctx.restore();
   }
 }
 
@@ -185,31 +224,69 @@ function drawAvatar(ctx: CanvasRenderingContext2D, avatar: HTMLImageElement, cy:
 // The game's actual mark — same artwork as assets/icon.png — drawn in code so
 // the title screen never depends on loading an external image file.
 function drawLogoMark(ctx: CanvasRenderingContext2D, cy: number): void {
-  const w = 170;
+  const w = 148;
   const cx = BOARD_W / 2;
+
+  const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, w * 1.1);
+  glow.addColorStop(0, 'rgba(255, 211, 107, 0.28)');
+  glow.addColorStop(1, 'rgba(255, 211, 107, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(cx - w * 1.2, cy - w * 1.2, w * 2.4, w * 2.4);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 8;
   ctx.fillStyle = '#ffd36b';
-  roundRect(ctx, cx - w / 2, cy - (w * 0.82) / 2, w, w * 0.82, 26);
+  roundRect(ctx, cx - w / 2, cy - (w * 0.82) / 2, w, w * 0.82, 24);
   ctx.fill();
+  ctx.restore();
   face(ctx, cx, cy, w, 'happy');
+
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.arc(cx, cy + w * 0.62, 11, 0, Math.PI * 2);
+  ctx.arc(cx, cy + w * 0.62, 10, 0, Math.PI * 2);
   ctx.fill();
   const pg = ctx.createLinearGradient(0, cy + 0.76 * w, 0, cy + 0.9 * w);
   pg.addColorStop(0, '#8fe3a0');
   pg.addColorStop(1, '#6bc9ff');
   ctx.fillStyle = pg;
-  roundRect(ctx, cx - w * 0.3, cy + 0.76 * w, w * 0.6, 13, 6.5);
+  roundRect(ctx, cx - w * 0.3, cy + 0.76 * w, w * 0.6, 12, 6);
   ctx.fill();
 }
 
 export function drawTitle(ctx: CanvasRenderingContext2D, profile: Profile): void {
-  if (profile.avatar) drawAvatar(ctx, profile.avatar, 380);
-  else drawLogoMark(ctx, 370);
-  centerText(ctx, 'BRICKMOJI', 540, 84);
-  centerText(ctx, 'smash the smiley bricks', 590, 30, 'rgba(255,255,255,0.8)', 500);
-  centerText(ctx, '▶ TAP TO START', 760, 40, '#8fe3a0');
-  if (profile.best > 0) centerText(ctx, `BEST ${profile.best}`, 820, 28, 'rgba(255,255,255,0.65)', 600);
+  if (profile.avatar) drawAvatar(ctx, profile.avatar, 300);
+  else drawLogoMark(ctx, 300);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 2;
+  ctx.shadowOffsetY = 3;
+  centerText(ctx, 'BRICKMOJI', 500, 78);
+  ctx.restore();
+  centerText(ctx, 'smash the smiley bricks', 548, 28, 'rgba(255,255,255,0.78)', 500);
+
+  const pillY = 660;
+  const pillW = 320;
+  const pillH = 76;
+  const pg = ctx.createLinearGradient(0, pillY - pillH / 2, 0, pillY + pillH / 2);
+  pg.addColorStop(0, '#9af0ad');
+  pg.addColorStop(1, '#5fd1a6');
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 6;
+  ctx.fillStyle = pg;
+  roundRect(ctx, BOARD_W / 2 - pillW / 2, pillY - pillH / 2, pillW, pillH, pillH / 2);
+  ctx.fill();
+  ctx.restore();
+  centerText(ctx, '▶ TAP TO START', pillY + 12, 38, '#1a1033', 800);
+
+  if (profile.best > 0) {
+    centerText(ctx, `BEST ${profile.best}`, 790, 28, 'rgba(255,255,255,0.65)', 600);
+  }
+  centerText(ctx, 'drag to move · tap to launch', BOARD_H - 60, 22, 'rgba(255,255,255,0.45)', 500);
 }
 
 export function drawServeHint(ctx: CanvasRenderingContext2D): void {

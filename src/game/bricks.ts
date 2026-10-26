@@ -2,7 +2,7 @@
 // drawn expressions (render/draw.ts does the actual drawing). Kept data-only
 // here so the layout is easy to unit-test.
 
-export type Expression = 'happy' | 'wink' | 'wow' | 'cool' | 'heart';
+export type Expression = 'happy' | 'wink' | 'wow' | 'cool' | 'heart' | 'angry' | 'sad';
 export const EXPRESSIONS: Expression[] = ['happy', 'wink', 'wow', 'cool', 'heart'];
 
 export const FACE_COLORS = ['#ff9f6b', '#ffd36b', '#8fe3a0', '#6bc9ff', '#c99bff', '#ff8fb3'];
@@ -14,6 +14,8 @@ export interface Brick {
   color: string;
   face: Expression;
   alive: boolean;
+  /** Seconds left reacting to a hit — render/draw.ts flashes an 'angry'/'sad' face and a squash while it counts down. */
+  hitTimer: number;
 }
 
 export interface BrickLayout {
@@ -45,6 +47,7 @@ export function buildLevel(level: number, cols: number, rng: () => number = Math
         color: FACE_COLORS[Math.floor(rng() * FACE_COLORS.length)] ?? FACE_COLORS[0]!,
         face: EXPRESSIONS[Math.floor(rng() * EXPRESSIONS.length)] ?? 'happy',
         alive: true,
+        hitTimer: 0,
       });
     }
   }

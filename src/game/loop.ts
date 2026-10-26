@@ -140,6 +140,7 @@ function stepBall(state: GameState, ball: Ball, dt: number, hooks: LoopHooks): b
     if (!circleRectOverlap(ball.x, ball.y, BALL_R, rect)) continue;
     brick.hp -= 1;
     state.score += 10;
+    brick.hitTimer = 0.22;
     if (brick.hp <= 0) {
       brick.alive = false;
       maybeDropPowerup(state, rect.x + rect.w / 2, rect.y + rect.h / 2, Math.random);
@@ -203,6 +204,9 @@ export function step(state: GameState, input: Input, dt: number, hooks: LoopHook
 
   // PLAYING
   updateEffectTimers(state, dt);
+  for (const brick of state.layout.bricks) {
+    if (brick.hitTimer > 0) brick.hitTimer = Math.max(0, brick.hitTimer - dt);
+  }
   state.balls = state.balls.filter((ball) => stepBall(state, ball, dt, hooks));
   stepPowerups(state, dt, hooks);
 
